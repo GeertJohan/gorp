@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"os"
+	"os/exec"
 	"strconv"
 )
 
@@ -14,6 +16,7 @@ type PostgresFlags struct {
 	Username *string `long:"postgres-username" env:"GORP_POSTGRES_USERNAME" description:"Postgres username" default-mask:"gorptest"`
 	Password *string `long:"postgres-password" env:"GORP_POSTGRES_PASSWORD" description:"Postgres password" default-mask:"gorptest"`
 	Database *string `long:"postgres-database" env:"GORP_POSTGRES_DATABASE" description:"Postgres database" default-mask:"gorptest"`
+	SSLMode  *string `long:"postgres-sslmode" env:"GORP_POSTGRES_SSLMODE" description:"Postgres sslmode setting, see godoc for lib/pq for more info" default-mask:"disable"`
 }
 
 // extra manual flags checks for postgres specific
@@ -36,7 +39,8 @@ func (m *PostgresFlags) check() error {
 		}
 	} else {
 		defaulthost := "127.0.0.1"
-		defaultport := uint16(3306)
+		defaultport := uint16(5432)
+		defaultsslmode := "disable"
 		gorptest := "gorptest"
 		if m.Host == nil {
 			m.Host = &defaulthost
@@ -53,7 +57,17 @@ func (m *PostgresFlags) check() error {
 		if m.Database == nil {
 			m.Database = &gorptest
 		}
+		if m.SSLMode == nil {
+			m.SSLMode = &defaultsslmode
+		}
+
+		switch *m.SSLMode {
+		case "disable", "require", "verify-ca", "verify-full":
+		default:
+			return errors.New("invalid value for --postgres-sslmode, see godoc for lib/pq about valid values")
+		}
 	}
+
 	return nil
 }
 
@@ -85,16 +99,61 @@ func (c *cmdTestPostgres) Execute(args []string) error {
 		dsn += " host=" + *c.PostgresFlags.Host
 		dsn += " port=" + strconv.Itoa(int(*c.PostgresFlags.Port))
 		dsn += " dbname=" + *c.PostgresFlags.Database
+		dsn += " sslmode=" + *c.PostgresFlags.SSLMode
 	}
 	verbosef("testing postgres with dsn: %s\n", dsn)
+
+	gotest := exec.Command("go", "test")
+	gotest.Env = os.Environ()
+	gotest.Env = append(gotest.Env, []string{
+		"GORP_TEST_DSN=" + dsn,
+		"GORP_TEST_DIALECT=postgres",
+	}...)
+	linkStdio(gotest)
+	err := gotest.Run()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 type cmdTestPostgresDocker struct{}
 
 func (c *cmdTestPostgresDocker) Execute(args []string) error {
-	// ++ setup docker
-	// ++ create custom flags and cmd
-	// ++ manually run cmd
+	containerName := "gorp_postgres"
+
+	// cleanup when container already exists
+	dockerStop(containerName)
+	dockerRemove(containerName)
+
+	dockerRun := exec.Command("docker", "run", "-d", "--name="+containerName, "--env=POSTGRES_USER=gorptest", "--env=POSTGRES_PASSWORD=gorptest", "postgres:latest")
+	linkStdio(dockerRun)
+	err := dockerRun.Run()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		dockerStop(containerName)   //++ TODO: what to do with these ignored errors?
+		dockerRemove(containerName) //++ TODO: what to do with these ignored errors?
+	}()
+
+	addr, err := dockerIPAddress(containerName)
+	if err != nil {
+		return err
+	}
+
+	dockerWait(containerName, "database system is ready to accept connections")
+
+	postgres := cmdTestPostgres{
+		PostgresFlags: PostgresFlags{
+			Host: &addr,
+		},
+	}
+	err = postgres.Execute(nil)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

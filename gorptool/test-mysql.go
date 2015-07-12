@@ -109,7 +109,6 @@ func (c *cmdTestMysqlDocker) Execute(args []string) error {
 
 	dockerWait(containerName, "port: 3306  MySQL Community Server")
 
-	fmt.Printf("have addr: %s\n", addr)
 	addr += ":3306"
 	root := "root"
 	mysql := cmdTestMysql{
