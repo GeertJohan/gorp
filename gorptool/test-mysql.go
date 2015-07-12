@@ -91,7 +91,7 @@ func (c *cmdTestMysqlDocker) Execute(args []string) error {
 	dockerStop(containerName)
 	dockerRemove(containerName)
 
-	dockerRun := exec.Command("docker", "run", "-d", "--name=gorp_mysql", "--env=MYSQL_ROOT_PASSWORD=gorptest", "--env=MYSQL_DATABASE=gorptest", "mysql:latest")
+	dockerRun := exec.Command("docker", "run", "-d", "--name="+containerName, "--env=MYSQL_ROOT_PASSWORD=gorptest", "--env=MYSQL_DATABASE=gorptest", "mysql:latest")
 	linkStdio(dockerRun)
 	err := dockerRun.Run()
 	if err != nil {
