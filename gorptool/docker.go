@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -37,7 +36,6 @@ func newWaitUntilWriter(trigger string) *waitUntilWriter {
 func (w *waitUntilWriter) Write(p []byte) (n int, err error) {
 	w.buffer.Write(p)
 	if strings.Contains(w.buffer.String(), w.trigger) {
-		fmt.Println("mysql ready")
 		close(w.doneCh)
 	}
 	return len(p), nil
