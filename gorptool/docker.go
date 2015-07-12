@@ -36,7 +36,11 @@ func newWaitUntilWriter(trigger string) *waitUntilWriter {
 func (w *waitUntilWriter) Write(p []byte) (n int, err error) {
 	w.buffer.Write(p)
 	if strings.Contains(w.buffer.String(), w.trigger) {
-		close(w.doneCh)
+		select {
+		case <-w.doneCh:
+		default:
+			close(w.doneCh)
+		}
 	}
 	return len(p), nil
 }
