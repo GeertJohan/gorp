@@ -65,7 +65,7 @@ func (c *cmdTestMysql) Execute(args []string) error {
 	} else {
 		dsn = fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", *c.MysqlFlags.Username, *c.MysqlFlags.Password, *c.MysqlFlags.Address, *c.MysqlFlags.Database)
 	}
-	fmt.Printf("connecting to mysql: %s\n", dsn)
+	verbosef("testing mysql with dsn: %s\n", dsn)
 	gotest := exec.Command("go", "test")
 
 	gotest.Env = os.Environ()

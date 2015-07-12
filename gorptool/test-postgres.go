@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 )
 
@@ -87,7 +86,7 @@ func (c *cmdTestPostgres) Execute(args []string) error {
 		dsn += " port=" + strconv.Itoa(int(*c.PostgresFlags.Port))
 		dsn += " dbname=" + *c.PostgresFlags.Database
 	}
-	fmt.Printf("connecting to postgres: %s\n", dsn)
+	verbosef("testing postgres with dsn: %s\n", dsn)
 	return nil
 }
 

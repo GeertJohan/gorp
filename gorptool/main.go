@@ -54,3 +54,9 @@ func main() {
 		os.Exit(0)
 	}
 }
+
+func verbosef(format string, args ...interface{}) {
+	if flags.Verbose {
+		fmt.Printf(format, args...)
+	}
+}
