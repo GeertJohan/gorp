@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 )
 
 // MysqlFlags can be used on the commands `test all` and `test mysql`.
@@ -64,12 +66,63 @@ func (c *cmdTestMysql) Execute(args []string) error {
 		dsn = fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", *c.MysqlFlags.Username, *c.MysqlFlags.Password, *c.MysqlFlags.Address, *c.MysqlFlags.Database)
 	}
 	fmt.Printf("connecting to mysql: %s\n", dsn)
+	gotest := exec.Command("go", "test")
+
+	gotest.Env = os.Environ()
+	gotest.Env = append(gotest.Env, []string{
+		"GORP_TEST_DSN=" + dsn,
+		"GORP_TEST_DIALECT=gomysql",
+	}...)
+	linkStdio(gotest)
+	err := gotest.Run()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 type cmdTestMysqlDocker struct{}
 
 func (c *cmdTestMysqlDocker) Execute(args []string) error {
+	containerName := "gorp_mysql"
+
+	// cleanup when container already exists
+	dockerStop(containerName)
+	dockerRemove(containerName)
+
+	dockerRun := exec.Command("docker", "run", "-d", "--name=gorp_mysql", "--env=MYSQL_ROOT_PASSWORD=gorptest", "--env=MYSQL_DATABASE=gorptest", "mysql:latest")
+	linkStdio(dockerRun)
+	err := dockerRun.Run()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		dockerStop(containerName)   //++ TODO: what to do with these ignored errors?
+		dockerRemove(containerName) //++ TODO: what to do with these ignored errors?
+	}()
+
+	addr, err := dockerIPAddress(containerName)
+	if err != nil {
+		return err
+	}
+
+	dockerWait(containerName, "port: 3306  MySQL Community Server")
+
+	fmt.Printf("have addr: %s\n", addr)
+	addr += ":3306"
+	root := "root"
+	mysql := cmdTestMysql{
+		MysqlFlags: MysqlFlags{
+			Username: &root,
+			Address:  &addr,
+		},
+	}
+	err = mysql.Execute(nil)
+	if err != nil {
+		return err
+	}
+
 	// ++ setup docker
 	// ++ create custom flags and cmd
 	// ++ manually run cmd
