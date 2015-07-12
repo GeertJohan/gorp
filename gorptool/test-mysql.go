@@ -123,8 +123,5 @@ func (c *cmdTestMysqlDocker) Execute(args []string) error {
 		return err
 	}
 
-	// ++ setup docker
-	// ++ create custom flags and cmd
-	// ++ manually run cmd
 	return nil
 }

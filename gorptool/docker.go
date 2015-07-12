@@ -6,57 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
-
-	"github.com/fsouza/go-dockerclient"
 )
-
-var dockerInstance struct {
-	client *docker.Client
-	auth   docker.AuthConfiguration
-	lock   sync.Mutex
-}
-
-func setupDocker() (*docker.Client, error) {
-	dockerInstance.lock.Lock()
-	defer dockerInstance.lock.Unlock()
-
-	if dockerInstance.client != nil {
-		return dockerInstance.client, nil
-	}
-
-	client, err := docker.NewClient("unix:///var/run/docker.sock")
-	if err != nil {
-		return nil, err
-	}
-	dockerInstance.client = client
-
-	return client, nil
-}
-
-//
-// func setupDocker() (*docker.Client, docker.AuthConfiguration, error) {
-// 	dockerInstance.lock.Lock()
-// 	defer dockerInstance.lock.Unlock()
-//
-// 	if dockerInstance.client != nil {
-// 		return dockerInstance.client, dockerInstance.auth, nil
-// 	}
-//
-// 	client, err := docker.NewClient("unix:///var/run/docker.sock")
-// 	if err != nil {
-// 		return nil, docker.AuthConfiguration{}, err
-// 	}
-// 	dockerInstance.client = client
-//
-// 	auth, err := docker.NewAuthConfigurationsFromDockerCfg()
-// 	if err != nil {
-// 		return nil, docker.AuthConfiguration{}, err
-// 	}
-// 	dockerInstance.auth = auth.Configs
-//
-// 	return client, auth, nil
-// }
 
 func dockerIPAddress(name string) (string, error) {
 	dockerInspect := exec.Command("docker", "inspect", "--format='{{.NetworkSettings.IPAddress}}'", name)
